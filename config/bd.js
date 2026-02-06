@@ -7,7 +7,7 @@ const sequelize = new Sequelize(
   process.env.DB_PASSWORD,
 
   {
-    host: process.env.DB_HOST,
+    host: 'centerbeam.proxy.rlwy.net',
     port:process.env.DB_PORT,
     dialect: 'mysql',
     port: 3306,
