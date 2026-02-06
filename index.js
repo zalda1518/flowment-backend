@@ -2,13 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-const { connectDB, sequelize } = require('./config/bd');
+const { connectDB } = require('./config/bd');
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
-
-// Importar modelos para sincronizar
-const Usuario = require('./models/usuarios');
-const { Tarea } = require('./models/tareas');
+const reporteRoutes = require('./routes/reporteRoutes');
 
 const app = express();
 
@@ -18,15 +15,14 @@ app.use(express.json());
 // Rutas API
 app.use('/api/auth', authRoutes);
 app.use('/api/tareas', taskRoutes);
+app.use('/api/reportes', reporteRoutes);
 
 const PORT = process.env.PORT || 3001;
 
 const startServer = async () => {
   try {
     await connectDB();
-    // Sincronizar modelos con la base de datos (alter: true actualiza las tablas existentes)
-    await sequelize.sync({ alter: true });
-    console.log('✓ Modelos sincronizados con la base de datos');
+    console.log('✓ Conexión a la base de datos establecida');
     
     app.listen(PORT, () => {
       console.log(`✓ Servidor corriendo en http://localhost:${PORT}`);
@@ -38,4 +34,3 @@ const startServer = async () => {
 };
 
 startServer();
-

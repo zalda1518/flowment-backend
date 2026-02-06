@@ -1,36 +1,29 @@
 const ExcelJS = require('exceljs');
-const { Tarea } = require('../models/tareas');
-const Usuario = require('../models/usuarios');
-const { Op } = require('sequelize');
+const { pool } = require('../config/bd');
 
 const exportarReporte = async (req, res) => {
   try {
     const { filtros, tareas: tareasIds } = req.body;
 
     // Construir query con filtros
-    const whereClause = {};
+    let query = `SELECT t.*, u1.name as colaborador_name, u1.email as colaborador_email, u1.numeroDocumento, 
+                 u2.name as creador_name, u2.email as creador_email 
+                 FROM tareas t 
+                 LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario 
+                 LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario 
+                 WHERE 1=1`;
+    const params = [];
 
     if (tareasIds && tareasIds.length > 0) {
-      whereClause.id_tarea = { [Op.in]: tareasIds };
+      const placeholders = tareasIds.map(() => '?').join(',');
+      query += ` AND t.id_tarea IN (${placeholders})`;
+      params.push(...tareasIds);
     }
 
-    // Obtener tareas con relaciones
-    const tareas = await Tarea.findAll({
-      where: whereClause,
-      include: [
-        {
-          model: Usuario,
-          as: 'colaborador',
-          attributes: ['id_usuario', 'name', 'email', 'numeroDocumento', 'rol']
-        },
-        {
-          model: Usuario,
-          as: 'creador',
-          attributes: ['id_usuario', 'name', 'email']
-        }
-      ],
-      order: [['createdAt', 'DESC']]
-    });
+    query += ` ORDER BY t.createdAt DESC`;
+
+    // Obtener tareas
+    const [tareas] = await pool.query(query, params);
 
     // Crear workbook
     const workbook = new ExcelJS.Workbook();
@@ -71,16 +64,16 @@ const exportarReporte = async (req, res) => {
         titulo: tarea.titulo,
         descripcion: tarea.descripcion || '',
         area: tarea.area ? tarea.area.charAt(0).toUpperCase() + tarea.area.slice(1) : '',
-        colaborador: tarea.colaborador?.name || 'No asignado',
-        numeroDocumento: tarea.colaborador?.numeroDocumento || '',
-        email: tarea.colaborador?.email || '',
-        fechaAsignacion: tarea.fechaAsignacion || '',
-        horaAsignacion: tarea.horaAsignacion || '',
-        fechaVencimiento: tarea.fechaVencimiento || '',
-        horaVencimiento: tarea.horaVencimiento || '',
+        colaborador: tarea.colaborador_name || 'No asignado',
+        numeroDocumento: tarea.numeroDocumento || '',
+        email: tarea.colaborador_email || '',
+        fechaAsignacion: tarea.fecha_asignacion || '',
+        horaAsignacion: tarea.hora_asignacion || '',
+        fechaVencimiento: tarea.fecha_vencimiento || '',
+        horaVencimiento: tarea.hora_vencimiento || '',
         estado: tarea.estado,
         prioridad: tarea.prioridad,
-        creador: tarea.creador?.name || '',
+        creador: tarea.creador_name || '',
         createdAt: tarea.createdAt ? new Date(tarea.createdAt).toLocaleDateString('es-ES') : ''
       });
 

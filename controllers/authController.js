@@ -1,10 +1,16 @@
-const { sequelize } = require('../config/bd');
+const { pool } = require('../config/bd');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const Usuario = require('../models/usuarios');
-const { Tarea } = require('../models/tareas');
 const ExcelJS = require('exceljs');
-const { Op } = require('sequelize');
+const {
+  findUsuarioByEmail,
+  findUsuarioById,
+  createUsuario,
+  findAllUsuarios,
+  findColaboradores,
+  updateUsuario: updateUsuarioDB,
+  deleteUsuario: deleteUsuarioDB,
+} = require('../helpers/queryHelper');
 
 // Generar token JWT
 const generateToken = (id_usuario, rol) => {
@@ -50,7 +56,7 @@ const register = async (req, res) => {
     }
 
     // Verificar si el email ya existe
-    const usuarioExistente = await Usuario.findOne({ where: { email } });
+    const usuarioExistente = await findUsuarioByEmail(email);
     if (usuarioExistente) {
       return res.status(400).json({ message: 'El email ya está registrado' });
     }
@@ -66,8 +72,8 @@ const register = async (req, res) => {
     // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear usuario con todos los campos
-    const usuario = await Usuario.create({
+    // Crear usuario
+    const usuarioId = await createUsuario({
       name,
       email,
       password: hashedPassword,
@@ -79,11 +85,12 @@ const register = async (req, res) => {
       estado: 'activo',
     });
 
+    const usuario = await findUsuarioById(usuarioId);
+
     // Generar token
     const token = generateToken(usuario.id_usuario, usuario.rol);
 
-    const payload = usuario.toJSON();
-    delete payload.password;
+    const { password: _, ...payload } = usuario;
 
     res.status(201).json({
       message: 'Usuario registrado exitosamente',
@@ -106,7 +113,7 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Email y contraseña son requeridos' });
     }
 
-    const usuario = await Usuario.findOne({ where: { email } });
+    const usuario = await findUsuarioByEmail(email);
 
     if (!usuario) {
       return res.status(401).json({ message: 'Email o contraseña incorrectos' });
@@ -124,8 +131,7 @@ const login = async (req, res) => {
 
     const token = generateToken(usuario.id_usuario, usuario.rol);
 
-    const payload = usuario.toJSON();
-    delete payload.password;
+    const { password: _, ...payload } = usuario;
 
     res.json({
       message: 'Login exitoso',
@@ -142,12 +148,11 @@ const login = async (req, res) => {
 // Obtener perfil
 const getProfile = async (req, res) => {
   try {
-    const usuario = await Usuario.findByPk(req.userId);
+    const usuario = await findUsuarioById(req.userId);
     if (!usuario) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-    const payload = usuario.toJSON();
-    delete payload.password;
+    const { password: _, ...payload } = usuario;
     res.json(payload);
   } catch (error) {
     console.error('Error en getProfile:', error.message);
@@ -164,24 +169,9 @@ const getColaboradores = async (req, res) => {
       return res.status(400).json({ message: 'La organización es requerida' });
     }
 
-    const colaboradores = await Usuario.findAll({
-      where: {
-        rol: 'colaborador',
-        organizacion: organizacion,
-      },
-      attributes: ['id_usuario', 'name', 'email', 'rol', 'organizacion'],
-      order: [['name', 'ASC']],
-    });
+    const colaboradores = await findColaboradores(organizacion);
 
-    const resultado = colaboradores.map(user => ({
-      id: user.id_usuario,
-      nombre: user.name,
-      email: user.email,
-      rol: user.rol,
-      organizacion: user.organizacion,
-    }));
-
-    res.status(200).json(resultado);
+    res.status(200).json(colaboradores);
   } catch (error) {
     console.error('Error en getColaboradores:', error.message);
     res.status(500).json({ message: 'Error al obtener colaboradores', error: error.message });
@@ -191,10 +181,7 @@ const getColaboradores = async (req, res) => {
 // Obtener todos los usuarios
 const getAllUsuarios = async (req, res) => {
   try {
-    const usuarios = await Usuario.findAll({
-      attributes: { exclude: ['password'] },
-      order: [['id_usuario', 'DESC']],
-    });
+    const usuarios = await findAllUsuarios({}, ['password']);
 
     res.status(200).json(usuarios);
   } catch (error) {
@@ -208,15 +195,15 @@ const getUsuarioById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const usuario = await Usuario.findByPk(id, {
-      attributes: { exclude: ['password'] },
-    });
+    const usuario = await findUsuarioById(id);
 
     if (!usuario) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    res.status(200).json(usuario);
+    const { password: _, ...usuarioSinPassword } = usuario;
+
+    res.status(200).json(usuarioSinPassword);
   } catch (error) {
     console.error('Error en getUsuarioById:', error.message);
     res.status(500).json({ message: 'Error al obtener usuario', error: error.message });
@@ -229,7 +216,7 @@ const updateUsuario = async (req, res) => {
     const { id } = req.params;
     const { name, email, tipoDocumento, numeroDocumento, rol, organizacion, estado } = req.body;
 
-    const usuario = await Usuario.findByPk(id);
+    const usuario = await findUsuarioById(id);
 
     if (!usuario) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -237,7 +224,7 @@ const updateUsuario = async (req, res) => {
 
     // Validar que el email no exista en otro usuario
     if (email && email !== usuario.email) {
-      const usuarioExistente = await Usuario.findOne({ where: { email } });
+      const usuarioExistente = await findUsuarioByEmail(email);
       if (usuarioExistente) {
         return res.status(400).json({ message: 'El email ya está en uso' });
       }
@@ -257,19 +244,20 @@ const updateUsuario = async (req, res) => {
 
     const tipoDocumentoFinal = tipoDocumento ? mapeoTipoDocumento[tipoDocumento.toLowerCase()] || tipoDocumento : undefined;
 
-    // Actualizar solo los campos permitidos
-    if (name) usuario.name = name;
-    if (email) usuario.email = email;
-    if (tipoDocumentoFinal !== undefined) usuario.tipoDocumento = tipoDocumentoFinal;
-    if (numeroDocumento !== undefined) usuario.numeroDocumento = numeroDocumento;
-    if (rol) usuario.rol = rol;
-    if (organizacion) usuario.organizacion = organizacion;
-    if (estado) usuario.estado = estado;
+    // Actualizar usuario en la BD
+    const dataToUpdate = {};
+    if (name) dataToUpdate.name = name;
+    if (email) dataToUpdate.email = email;
+    if (tipoDocumentoFinal !== undefined) dataToUpdate.tipoDocumento = tipoDocumentoFinal;
+    if (numeroDocumento !== undefined) dataToUpdate.numeroDocumento = numeroDocumento;
+    if (rol) dataToUpdate.rol = rol;
+    if (organizacion) dataToUpdate.organizacion = organizacion;
+    if (estado) dataToUpdate.estado = estado;
 
-    await usuario.save();
+    await updateUsuarioDB(id, dataToUpdate);
 
-    const payload = usuario.toJSON();
-    delete payload.password;
+    const usuarioActualizado = await findUsuarioById(id);
+    const { password: _, ...payload } = usuarioActualizado;
 
     res.status(200).json({
       message: 'Usuario actualizado exitosamente',
@@ -286,13 +274,13 @@ const deleteUsuario = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const usuario = await Usuario.findByPk(id);
+    const usuario = await findUsuarioById(id);
 
     if (!usuario) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    await usuario.destroy();
+    await deleteUsuarioDB(id);
 
     res.status(200).json({ message: 'Usuario eliminado exitosamente' });
   } catch (error) {
@@ -306,19 +294,13 @@ const exportarUsuarios = async (req, res) => {
   try {
     const { usuarios: usuariosIds } = req.body;
 
-    // Construir query
-    const whereClause = {};
-
+    let usuarios;
     if (usuariosIds && usuariosIds.length > 0) {
-      whereClause.id_usuario = { [Op.in]: usuariosIds };
+      usuarios = await findAllUsuarios({}, ['password']);
+      usuarios = usuarios.filter(u => usuariosIds.includes(u.id_usuario));
+    } else {
+      usuarios = await findAllUsuarios({}, ['password']);
     }
-
-    // Obtener usuarios
-    const usuarios = await Usuario.findAll({
-      where: whereClause,
-      attributes: { exclude: ['password'] },
-      order: [['id_usuario', 'DESC']]
-    });
 
     // Crear workbook
     const workbook = new ExcelJS.Workbook();

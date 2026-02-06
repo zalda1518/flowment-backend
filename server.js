@@ -2,10 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const { sequelize, connectDB } = require('./config/bd');
-// Importar modelos para que Sequelize los conozca
-const Usuario = require('./models/usuarios');
-const { Tarea } = require('./models/tareas');
+const { connectDB } = require('./config/bd');
 const authRoutes = require('./routes/authRoutes'); 
 const taskRoutes = require('./routes/taskRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
@@ -14,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// prueba conexión
+// Conectar a la base de datos
 connectDB();
 
 app.use('/api/auth', authRoutes);

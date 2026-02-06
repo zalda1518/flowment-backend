@@ -2,6 +2,7 @@ const express = require('express');
 const {
   register,
   login,
+  getProfile,
   getColaboradores,
   getAllUsuarios,
   getUsuarioById,
@@ -23,6 +24,9 @@ router.post('/register', register);
 router.post('/login', login);
 
 // Rutas protegidas
+
+//endpoint para obtener perfil del usuario autenticado
+router.get('/perfil', authMiddleware, getProfile);
 
 //endpoint para obtener colaboradores por organización
 router.get('/colaboradores', authMiddleware, getColaboradores);

@@ -1,11 +1,18 @@
-const { Tarea } = require('../models/tareas');
-const Usuario = require('../models/usuarios');
+const {
+  findUsuarioById,
+  createTarea,
+  findTareas,
+  findTareaById,
+  updateTarea,
+  findTareasRecibidas,
+} = require('../helpers/queryHelper');
+const { pool } = require('../config/bd');
 
 // Crear tarea
 const createTask = async (req, res) => {
   try {
     // Validar que el usuario sea TeamLeader
-    const usuario = await Usuario.findByPk(req.userId);
+    const usuario = await findUsuarioById(req.userId);
     
     if (!usuario || usuario.rol !== 'TeamLeader') {
       return res.status(403).json({ message: 'Solo TeamLeader puede crear tareas' });
@@ -17,39 +24,46 @@ const createTask = async (req, res) => {
       return res.status(400).json({ message: 'Título, área y colaborador son requeridos' });
     }
 
-    const tarea = await Tarea.create({
+    const tareaId = await createTarea({
       titulo,
       descripcion,
       area,
-      colaboradorId,
-      creadorId: req.userId,
-      fechaVencimiento,
-      horaVencimiento,
-      fechaAsignacion,
-      horaAsignacion,
+      asignedTo: colaboradorId,
+      createdBy: req.userId,
+      fecha_vencimiento: fechaVencimiento,
+      hora_vencimiento: horaVencimiento,
+      fecha_asignacion: fechaAsignacion,
+      hora_asignacion: horaAsignacion,
       estado: 'asignada',
       prioridad: 'media',
     });
 
-    // Obtener tarea con relaciones
-    const tareaConRelaciones = await Tarea.findByPk(tarea.id_tarea, {
-      include: [
-        { 
-          model: Usuario, 
-          as: 'colaborador', 
-          attributes: ['id_usuario', 'name', 'email', 'rol'] 
-        },
-        { 
-          model: Usuario, 
-          as: 'creador', 
-          attributes: ['id_usuario', 'name', 'email', 'rol'] 
-        }
-      ]
-    });
+    const tarea = await findTareaById(tareaId);
 
     res.status(201).json({
       message: 'Tarea creada exitosamente',
-      tarea: tareaConRelaciones,
+      tarea: {
+        id_tarea: tarea.id_tarea,
+        titulo: tarea.titulo,
+        descripcion: tarea.descripcion,
+        area: tarea.area,
+        estado: tarea.estado,
+        prioridad: tarea.prioridad,
+        fecha_asignacion: tarea.fecha_asignacion,
+        hora_asignacion: tarea.hora_asignacion,
+        fecha_vencimiento: tarea.fecha_vencimiento,
+        hora_vencimiento: tarea.hora_vencimiento,
+        colaborador: {
+          id_usuario: tarea.asignedTo,
+          name: tarea.colaborador_name,
+          email: tarea.colaborador_email,
+        },
+        creador: {
+          id_usuario: tarea.createdBy,
+          name: tarea.creador_name,
+          email: tarea.creador_email,
+        }
+      },
     });
   } catch (error) {
     console.error('Error en createTask:', error.message);
@@ -62,42 +76,41 @@ const getAllTasks = async (req, res) => {
   try {
     const { estado, colaboradorId } = req.query;
     const userId = req.userId;
-    const filtro = {
-      creadorId: userId // Solo tareas creadas por el usuario autenticado
-    };
 
-    if (estado) filtro.estado = estado;
-    if (colaboradorId) filtro.colaboradorId = colaboradorId;
+    const where = { createdBy: userId };
+    if (estado) where.estado = estado;
+    if (colaboradorId) where.asignedTo = colaboradorId;
 
-    const tareas = await Tarea.findAll({
-      where: filtro,
-      include: [
-        { 
-          model: Usuario, 
-          as: 'colaborador', 
-          attributes: ['id_usuario', 'name', 'email', 'rol', 'numeroDocumento'] 
-        },
-        { 
-          model: Usuario, 
-          as: 'creador', 
-          attributes: ['id_usuario', 'name', 'email', 'rol'] 
-        }
-      ],
-      order: [['createdAt', 'DESC']]
-    });
+    const tareas = await findTareas(where);
 
-    // Procesar solicitudReapertura de string a objeto
-    const tareasProcessadas = tareas.map(t => {
-      if (t.solicitudReapertura && typeof t.solicitudReapertura === 'string') {
-        try {
-          t.solicitudReapertura = JSON.parse(t.solicitudReapertura);
-        } catch (e) {
-          console.error('Error parseando solicitudReapertura:', e);
-          t.solicitudReapertura = null;
-        }
+    // Procesar y formatear tareas
+    const tareasProcessadas = tareas.map(t => ({
+      id_tarea: t.id_tarea,
+      titulo: t.titulo,
+      descripcion: t.descripcion,
+      area: t.area,
+      estado: t.estado,
+      prioridad: t.prioridad,
+      fecha_asignacion: t.fecha_asignacion,
+      hora_asignacion: t.hora_asignacion,
+      fecha_vencimiento: t.fecha_vencimiento,
+      hora_vencimiento: t.hora_vencimiento,
+      resumen_finalizacion: t.resumen_finalizacion,
+      observacion: t.observacion,
+      createdAt: t.createdAt,
+      solicitud_reapertura: parseJSON(t.solicitud_reapertura),
+      colaborador: {
+        id_usuario: t.asignedTo,
+        name: t.colaborador_name,
+        email: t.colaborador_email,
+        numeroDocumento: t.numeroDocumento,
+      },
+      creador: {
+        id_usuario: t.createdBy,
+        name: t.creador_name,
+        email: t.creador_email,
       }
-      return t;
-    });
+    }));
 
     res.json(tareasProcessadas);
   } catch (error) {
@@ -109,36 +122,41 @@ const getAllTasks = async (req, res) => {
 // Obtener tarea por ID
 const getTaskById = async (req, res) => {
   try {
-    const tarea = await Tarea.findByPk(req.params.id, {
-      include: [
-        { 
-          model: Usuario, 
-          as: 'colaborador', 
-          attributes: ['id_usuario', 'name', 'email', 'rol', 'numeroDocumento'] 
-        },
-        { 
-          model: Usuario, 
-          as: 'creador', 
-          attributes: ['id_usuario', 'name', 'email', 'rol'] 
-        }
-      ]
-    });
+    const tarea = await findTareaById(req.params.id);
 
     if (!tarea) {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
-    // Procesar solicitudReapertura de string a objeto
-    if (tarea.solicitudReapertura && typeof tarea.solicitudReapertura === 'string') {
-      try {
-        tarea.solicitudReapertura = JSON.parse(tarea.solicitudReapertura);
-      } catch (e) {
-        console.error('Error parseando solicitudReapertura:', e);
-        tarea.solicitudReapertura = null;
+    const tareaFormateada = {
+      id_tarea: tarea.id_tarea,
+      titulo: tarea.titulo,
+      descripcion: tarea.descripcion,
+      area: tarea.area,
+      estado: tarea.estado,
+      prioridad: tarea.prioridad,
+      fecha_asignacion: tarea.fecha_asignacion,
+      hora_asignacion: tarea.hora_asignacion,
+      fecha_vencimiento: tarea.fecha_vencimiento,
+      hora_vencimiento: tarea.hora_vencimiento,
+      resumen_finalizacion: tarea.resumen_finalizacion,
+      observacion: tarea.observacion,
+      createdAt: tarea.createdAt,
+      solicitud_reapertura: parseJSON(tarea.solicitud_reapertura),
+      colaborador: {
+        id_usuario: tarea.asignedTo,
+        name: tarea.colaborador_name,
+        email: tarea.colaborador_email,
+        numeroDocumento: tarea.numeroDocumento,
+      },
+      creador: {
+        id_usuario: tarea.createdBy,
+        name: tarea.creador_name,
+        email: tarea.creador_email,
       }
-    }
+    };
 
-    res.json(tarea);
+    res.json(tareaFormateada);
   } catch (error) {
     console.error('Error en getTaskById:', error.message);
     res.status(500).json({ message: 'Error en el servidor', error: error.message });
@@ -148,8 +166,8 @@ const getTaskById = async (req, res) => {
 // Actualizar tarea
 const updateTask = async (req, res) => {
   try {
-    const usuario = await Usuario.findByPk(req.userId);
-    const tarea = await Tarea.findByPk(req.params.id);
+    const usuario = await findUsuarioById(req.userId);
+    const tarea = await findTareaById(req.params.id);
 
     if (!tarea) {
       return res.status(404).json({ message: 'Tarea no encontrada' });
@@ -157,13 +175,19 @@ const updateTask = async (req, res) => {
 
     // Si es TeamLeader, puede actualizar todo
     if (usuario && usuario.rol === 'TeamLeader') {
-      await tarea.update(req.body);
+      const dataToUpdate = {};
+      if (req.body.titulo) dataToUpdate.titulo = req.body.titulo;
+      if (req.body.descripcion !== undefined) dataToUpdate.descripcion = req.body.descripcion;
+      if (req.body.estado) dataToUpdate.estado = req.body.estado;
+      if (req.body.prioridad) dataToUpdate.prioridad = req.body.prioridad;
+
+      await updateTarea(req.params.id, dataToUpdate);
     } else {
       // Colaborador solo puede mover estado a en-proceso o finalizada
       const { estado, resumenFinalizacion } = req.body;
       const permitidos = ['en-proceso', 'finalizada'];
 
-      if (tarea.colaboradorId !== req.userId) {
+      if (tarea.asignedTo !== req.userId) {
         return res.status(403).json({ message: 'No autorizado para esta tarea' });
       }
       
@@ -176,26 +200,47 @@ const updateTask = async (req, res) => {
         return res.status(403).json({ message: 'Cambio de estado no permitido' });
       }
 
-      // Actualiza el estado
-      await tarea.update({ estado });
-
-      // Si finaliza, guarda el resumen de finalización
+      const dataToUpdate = { estado };
       if (estado === 'finalizada' && resumenFinalizacion) {
-        await tarea.update({ resumenFinalizacion });
+        dataToUpdate.resumen_finalizacion = resumenFinalizacion;
       }
+
+      await updateTarea(req.params.id, dataToUpdate);
     }
 
-    // Obtener tarea actualizada con relaciones
-    const tareaActualizada = await Tarea.findByPk(tarea.id_tarea, {
-      include: [
-        { model: Usuario, as: 'colaborador', attributes: ['id_usuario', 'name', 'email', 'rol', 'numeroDocumento'] },
-        { model: Usuario, as: 'creador', attributes: ['id_usuario', 'name', 'email', 'rol'] }
-      ]
-    });
+    // Obtener tarea actualizada
+    const tareaActualizada = await findTareaById(req.params.id);
+
+    const tareaFormateada = {
+      id_tarea: tareaActualizada.id_tarea,
+      titulo: tareaActualizada.titulo,
+      descripcion: tareaActualizada.descripcion,
+      area: tareaActualizada.area,
+      estado: tareaActualizada.estado,
+      prioridad: tareaActualizada.prioridad,
+      fecha_asignacion: tareaActualizada.fecha_asignacion,
+      hora_asignacion: tareaActualizada.hora_asignacion,
+      fecha_vencimiento: tareaActualizada.fecha_vencimiento,
+      hora_vencimiento: tareaActualizada.hora_vencimiento,
+      resumen_finalizacion: tareaActualizada.resumen_finalizacion,
+      observacion: tareaActualizada.observacion,
+      createdAt: tareaActualizada.createdAt,
+      colaborador: {
+        id_usuario: tareaActualizada.asignedTo,
+        name: tareaActualizada.colaborador_name,
+        email: tareaActualizada.colaborador_email,
+        numeroDocumento: tareaActualizada.numeroDocumento,
+      },
+      creador: {
+        id_usuario: tareaActualizada.createdBy,
+        name: tareaActualizada.creador_name,
+        email: tareaActualizada.creador_email,
+      }
+    };
 
     return res.json({
       message: 'Tarea actualizada exitosamente',
-      tarea: tareaActualizada,
+      tarea: tareaFormateada,
     });
   } catch (error) {
     console.error('Error en updateTask:', error.message);
@@ -207,37 +252,40 @@ const updateTask = async (req, res) => {
 const agregarObservacion = async (req, res) => {
   try {
     const { observacion } = req.body;
-    const tarea = await Tarea.findByPk(req.params.id);
+    const tarea = await findTareaById(req.params.id);
 
     if (!tarea) {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
-    // Obtener usuario que agrega la observación
-    const usuario = await Usuario.findByPk(req.userId);
+    const usuario = await findUsuarioById(req.userId);
 
-    // Guardar observación en JSON
-    const obsExist = tarea.observaciones ? JSON.parse(tarea.observaciones) : [];
-    obsExist.push({
-      texto: observacion,
-      fecha: new Date(),
-      usuarioId: req.userId,
-      usuarioNombre: usuario?.name || 'TeamLeader',
-      tipo: 'observacion_atraso'
-    });
+    await updateTarea(req.params.id, { observacion });
 
-    await tarea.update({ observaciones: JSON.stringify(obsExist) });
+    const tareaActualizada = await findTareaById(req.params.id);
 
-    const tareaActualizada = await Tarea.findByPk(tarea.id_tarea, {
-      include: [
-        { model: Usuario, as: 'colaborador', attributes: ['id_usuario', 'name', 'email'] },
-        { model: Usuario, as: 'creador', attributes: ['id_usuario', 'name', 'email'] }
-      ]
-    });
+    const tareaFormateada = {
+      id_tarea: tareaActualizada.id_tarea,
+      titulo: tareaActualizada.titulo,
+      descripcion: tareaActualizada.descripcion,
+      area: tareaActualizada.area,
+      estado: tareaActualizada.estado,
+      observacion: tareaActualizada.observacion,
+      colaborador: {
+        id_usuario: tareaActualizada.asignedTo,
+        name: tareaActualizada.colaborador_name,
+        email: tareaActualizada.colaborador_email,
+      },
+      creador: {
+        id_usuario: tareaActualizada.createdBy,
+        name: tareaActualizada.creador_name,
+        email: tareaActualizada.creador_email,
+      }
+    };
 
     return res.json({
       message: 'Observación agregada exitosamente',
-      tarea: tareaActualizada
+      tarea: tareaFormateada
     });
   } catch (error) {
     console.error('Error en agregarObservacion:', error);
@@ -249,32 +297,35 @@ const agregarObservacion = async (req, res) => {
 const getReceivedTasks = async (req, res) => {
   try {
     const userId = req.userId;
-    const tareas = await Tarea.findAll({
-      where: { colaboradorId: userId },
-      include: [
-        { model: Usuario, as: 'colaborador', attributes: ['id_usuario','name','email','numeroDocumento'] },
-        { model: Usuario, as: 'creador', attributes: ['id_usuario','name','email'] },
-      ],
-      order: [['createdAt', 'DESC']]
-    });
+    const tareas = await findTareasRecibidas(userId);
     
-    // Procesar solicitudReapertura de string a objeto
-    const tareasProcessadas = tareas.map(t => {
-      if (t.solicitudReapertura) {
-        if (typeof t.solicitudReapertura === 'string') {
-          try {
-            t.solicitudReapertura = t.solicitudReapertura.trim() ? JSON.parse(t.solicitudReapertura) : null;
-          } catch (e) {
-            console.error('Error parseando solicitudReapertura:', e);
-            t.solicitudReapertura = null;
-          }
-        }
-      } else {
-        // Asegurar que sea null en lugar de undefined o string vacío
-        t.solicitudReapertura = null;
+    const tareasProcessadas = tareas.map(t => ({
+      id_tarea: t.id_tarea,
+      titulo: t.titulo,
+      descripcion: t.descripcion,
+      area: t.area,
+      estado: t.estado,
+      prioridad: t.prioridad,
+      fecha_asignacion: t.fecha_asignacion,
+      hora_asignacion: t.hora_asignacion,
+      fecha_vencimiento: t.fecha_vencimiento,
+      hora_vencimiento: t.hora_vencimiento,
+      resumen_finalizacion: t.resumen_finalizacion,
+      observacion: t.observacion,
+      createdAt: t.createdAt,
+      solicitud_reapertura: parseJSON(t.solicitud_reapertura),
+      colaborador: {
+        id_usuario: t.asignedTo,
+        name: t.colaborador_name,
+        email: t.colaborador_email,
+        numeroDocumento: t.numeroDocumento,
+      },
+      creador: {
+        id_usuario: t.createdBy,
+        name: t.creador_name,
+        email: t.creador_email,
       }
-      return t;
-    });
+    }));
     
     return res.json(tareasProcessadas);
   } catch (err) {
@@ -289,13 +340,13 @@ const solicitarReapertura = async (req, res) => {
     const { motivo } = req.body;
     const userId = req.userId;
 
-    const tarea = await Tarea.findByPk(id);
+    const tarea = await findTareaById(id);
     if (!tarea) {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
     // Verificar que el usuario sea el colaborador asignado
-    if (tarea.colaboradorId !== userId) {
+    if (tarea.asignedTo !== userId) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
@@ -312,17 +363,28 @@ const solicitarReapertura = async (req, res) => {
       estado: 'pendiente'
     };
 
-    tarea.solicitudReapertura = solicitud;
-    await tarea.save();
+    await updateTarea(id, { solicitud_reapertura: solicitud });
 
-    const tareaActualizada = await Tarea.findByPk(id, {
-      include: [
-        { model: Usuario, as: 'colaborador', attributes: ['id_usuario','name','email','numeroDocumento'] },
-        { model: Usuario, as: 'creador', attributes: ['id_usuario','name','email'] },
-      ]
-    });
+    const tareaActualizada = await findTareaById(id);
 
-    return res.json({ message: 'Solicitud enviada exitosamente', tarea: tareaActualizada });
+    const tareaFormateada = {
+      id_tarea: tareaActualizada.id_tarea,
+      titulo: tareaActualizada.titulo,
+      estado: tareaActualizada.estado,
+      solicitud_reapertura: parseJSON(tareaActualizada.solicitud_reapertura),
+      colaborador: {
+        id_usuario: tareaActualizada.asignedTo,
+        name: tareaActualizada.colaborador_name,
+        email: tareaActualizada.colaborador_email,
+      },
+      creador: {
+        id_usuario: tareaActualizada.createdBy,
+        name: tareaActualizada.creador_name,
+        email: tareaActualizada.creador_email,
+      }
+    };
+
+    return res.json({ message: 'Solicitud enviada exitosamente', tarea: tareaFormateada });
   } catch (err) {
     console.error('ERROR en solicitarReapertura:', err.message);
     return res.status(500).json({ message: 'Error al solicitar reapertura', error: err.message });
@@ -336,33 +398,36 @@ const responderReapertura = async (req, res) => {
     const { aprobada, razon, nuevaFechaVencimiento, nuevaHoraVencimiento } = req.body;
     const userId = req.userId;
 
-    const tarea = await Tarea.findByPk(id);
+    const tarea = await findTareaById(id);
     if (!tarea) {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
     // Verificar que el usuario sea el creador (TeamLeader)
-    if (tarea.creadorId !== userId) {
+    if (tarea.createdBy !== userId) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
     // Verificar que haya solicitud pendiente
-    let solicitudActual = tarea.solicitudReapertura;
-    if (typeof solicitudActual === 'string') {
-      solicitudActual = JSON.parse(solicitudActual);
-    }
+    let solicitudActual = parseJSON(tarea.solicitud_reapertura);
     
     if (!solicitudActual || solicitudActual.estado !== 'pendiente') {
       return res.status(400).json({ message: 'No hay solicitud pendiente' });
     }
 
+    let dataToUpdate = {};
+
     if (aprobada) {
       // Aprobar: cambiar estado a asignada y actualizar fechas
-      tarea.estado = 'asignada';
-      if (nuevaFechaVencimiento) tarea.fechaVencimiento = nuevaFechaVencimiento;
-      if (nuevaHoraVencimiento) tarea.horaVencimiento = nuevaHoraVencimiento;
+      dataToUpdate.estado = 'asignada';
+      if (nuevaFechaVencimiento) {
+        dataToUpdate.fecha_vencimiento = nuevaFechaVencimiento;
+      }
+      if (nuevaHoraVencimiento) {
+        dataToUpdate.hora_vencimiento = nuevaHoraVencimiento;
+      }
       
-      tarea.solicitudReapertura = {
+      solicitudActual = {
         ...solicitudActual,
         estado: 'aprobada',
         fechaRespuesta: new Date(),
@@ -370,7 +435,7 @@ const responderReapertura = async (req, res) => {
       };
     } else {
       // Rechazar: mantener finalizada
-      tarea.solicitudReapertura = {
+      solicitudActual = {
         ...solicitudActual,
         estado: 'rechazada',
         razon,
@@ -379,18 +444,31 @@ const responderReapertura = async (req, res) => {
       };
     }
 
-    await tarea.save();
+    dataToUpdate.solicitud_reapertura = solicitudActual;
+    await updateTarea(id, dataToUpdate);
 
-    const tareaActualizada = await Tarea.findByPk(id, {
-      include: [
-        { model: Usuario, as: 'colaborador', attributes: ['id_usuario','name','email','numeroDocumento'] },
-        { model: Usuario, as: 'creador', attributes: ['id_usuario','name','email'] },
-      ]
-    });
+    const tareaActualizada = await findTareaById(id);
+
+    const tareaFormateada = {
+      id_tarea: tareaActualizada.id_tarea,
+      titulo: tareaActualizada.titulo,
+      estado: tareaActualizada.estado,
+      solicitud_reapertura: parseJSON(tareaActualizada.solicitud_reapertura),
+      colaborador: {
+        id_usuario: tareaActualizada.asignedTo,
+        name: tareaActualizada.colaborador_name,
+        email: tareaActualizada.colaborador_email,
+      },
+      creador: {
+        id_usuario: tareaActualizada.createdBy,
+        name: tareaActualizada.creador_name,
+        email: tareaActualizada.creador_email,
+      }
+    };
 
     return res.json({ 
       message: aprobada ? 'Solicitud aprobada' : 'Solicitud rechazada', 
-      tarea: tareaActualizada 
+      tarea: tareaFormateada 
     });
   } catch (err) {
     return res.status(500).json({ message: 'Error al responder solicitud', error: err.message });
@@ -402,37 +480,36 @@ const getSolicitudesReaperturaPendientes = async (req, res) => {
   try {
     const userId = req.userId;
     
-    const tareas = await Tarea.findAll({
-      where: {
-        creadorId: userId,
-        estado: 'finalizada'
-      },
-      include: [
-        { model: Usuario, as: 'colaborador', attributes: ['id_usuario','name','email','numeroDocumento'] },
-        { model: Usuario, as: 'creador', attributes: ['id_usuario','name','email'] },
-      ],
-      raw: false,
-      order: [['createdAt', 'DESC']]
-    });
+    const [tareas] = await pool.query(
+      `SELECT t.*, u1.name as colaborador_name, u1.email as colaborador_email, u1.numeroDocumento, u2.name as creador_name, u2.email as creador_email 
+       FROM tareas t 
+       LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario 
+       LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario 
+       WHERE t.createdBy = ? AND t.estado = 'finalizada'
+       ORDER BY t.createdAt DESC`,
+      [userId]
+    );
 
-    // Filtrar solo las que tienen solicitud pendiente Y parsear JSON
+    // Filtrar solo las que tienen solicitud pendiente
     const conSolicitud = tareas.filter(t => {
-      let solicitud = t.solicitudReapertura;
-      
-      // Parsear si es string
-      if (typeof solicitud === 'string') {
-        try {
-          solicitud = JSON.parse(solicitud);
-          t.solicitudReapertura = solicitud; // Actualizar el objeto con JSON parseado
-        } catch (e) {
-          return false;
-        }
+      let solicitud = parseJSON(t.solicitud_reapertura);
+      return solicitud && solicitud.estado === 'pendiente';
+    }).map(t => ({
+      id_tarea: t.id_tarea,
+      titulo: t.titulo,
+      estado: t.estado,
+      solicitud_reapertura: parseJSON(t.solicitud_reapertura),
+      colaborador: {
+        id_usuario: t.asignedTo,
+        name: t.colaborador_name,
+        email: t.colaborador_email,
+      },
+      creador: {
+        id_usuario: t.createdBy,
+        name: t.creador_name,
+        email: t.creador_email,
       }
-      
-      return solicitud && 
-             typeof solicitud === 'object' && 
-             solicitud.estado === 'pendiente';
-    });
+    }));
 
     return res.json(conSolicitud);
   } catch (err) {
@@ -440,6 +517,20 @@ const getSolicitudesReaperturaPendientes = async (req, res) => {
     return res.status(500).json({ message: 'Error al obtener solicitudes', error: err.message });
   }
 };
+
+// Función auxiliar para parsear JSON
+function parseJSON(str) {
+  if (!str) return null;
+  if (typeof str !== 'string') return str;
+  try {
+    const trimmed = str.trim();
+    if (!trimmed) return null;
+    return JSON.parse(trimmed);
+  } catch (e) {
+    console.error('Error parseando JSON:', e);
+    return null;
+  }
+}
 
 module.exports = {
   createTask,
