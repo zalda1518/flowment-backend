@@ -1,5 +1,5 @@
-const ExcelJS = require('exceljs');
-const { pool } = require('../config/bd');
+import ExcelJS from 'exceljs';
+import { pool } from '../config/bd.js';
 
 const exportarReporte = async (req, res) => {
   try {
@@ -96,7 +96,7 @@ const exportarReporte = async (req, res) => {
     });
 
     // Agregar bordes a todas las celdas
-    worksheet.eachRow((row, rowNumber) => {
+    worksheet.eachRow((row) => {
       row.eachCell((cell) => {
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -146,6 +146,4 @@ const exportarReporte = async (req, res) => {
   }
 };
 
-module.exports = {
-  exportarReporte
-};
+export { exportarReporte };

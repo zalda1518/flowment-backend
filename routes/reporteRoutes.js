@@ -1,17 +1,13 @@
-const express = require('express');
-const { exportarReporte } = require('../controllers/reporteController');
-const { authMiddleware } = require('../middleware/auth');
+import express from 'express';
+import { exportarReporte } from '../controllers/reporteController.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Todas las rutas requieren autenticación
-
-// Middleware de autenticación
 router.use(authMiddleware);
 
-// Exportar reporte
-
-//endpoint para exportar reportes en excel
+// endpoint para exportar reportes en excel
 router.post('/exportar', exportarReporte);
 
-module.exports = router;
+export default router;

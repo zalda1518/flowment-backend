@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-const authMiddleware = (req, res, next) => {
+export const authMiddleware = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -14,19 +14,17 @@ const authMiddleware = (req, res, next) => {
 
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
+    if (error?.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token expirado' });
     }
-    res.status(401).json({ message: 'Token inválido' });
+    return res.status(401).json({ message: 'Token inválido' });
   }
 };
 
-const adminMiddleware = (req, res, next) => {
+export const adminMiddleware = (req, res, next) => {
   if (req.userRole !== 'administrador') {
     return res.status(403).json({ message: 'No tienes permisos para acceder a este recurso' });
   }
   next();
 };
-
-module.exports = { authMiddleware, adminMiddleware };
 

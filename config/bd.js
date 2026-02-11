@@ -1,20 +1,27 @@
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
+
+const host = process.env.DB_HOST ?? 'localhost';
+const user = process.env.DB_USER ?? 'root';
+const password = process.env.DB_PASSWORD ?? '';
+const database = process.env.DB_NAME ?? 'flowment';
+const port = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306;
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'flowment',
-  port: process.env.DB_PORT || 3306,
+  host,
+  user,
+  password,
+  database,
+  port,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelayMs: 0
+  // seguridad / timeouts razonables
+  connectTimeout: 10000,
 });
 
 const connectDB = async () => {
   try {
+    console.log(`Conectando MySQL -> `);
     const connection = await pool.getConnection();
     console.log('✅ MySQL conectada correctamente');
     connection.release();
@@ -25,7 +32,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = {
-  pool,
-  connectDB
-};
+export { pool, connectDB };

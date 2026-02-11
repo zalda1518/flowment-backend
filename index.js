@@ -1,11 +1,11 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
 
-const { connectDB } = require('./config/bd');
-const authRoutes = require('./routes/authRoutes');
-const taskRoutes = require('./routes/taskRoutes');
-const reporteRoutes = require('./routes/reporteRoutes');
+import { connectDB } from './config/bd.js';
+import authRoutes from './routes/authRoutes.js';
+import taskRoutes from './routes/taskRoutes.js';
+import reporteRoutes from './routes/reporteRoutes.js';
 
 const app = express();
 
@@ -17,13 +17,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tareas', taskRoutes);
 app.use('/api/reportes', reporteRoutes);
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT ?? 3001;
 
 const startServer = async () => {
   try {
     await connectDB();
     console.log('✓ Conexión a la base de datos establecida');
-    
+
     app.listen(PORT, () => {
       console.log(`✓ Servidor corriendo en http://localhost:${PORT}`);
     });

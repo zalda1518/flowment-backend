@@ -1,12 +1,12 @@
-const {
+import {
   findUsuarioById,
   createTarea,
   findTareas,
   findTareaById,
   updateTarea,
   findTareasRecibidas,
-} = require('../helpers/queryHelper');
-const { pool } = require('../config/bd');
+} from '../helpers/queryHelper.js';
+import { pool } from '../config/bd.js';
 
 // Crear tarea
 const createTask = async (req, res) => {
@@ -532,7 +532,7 @@ function parseJSON(str) {
   }
 }
 
-module.exports = {
+export {
   createTask,
   getAllTasks,
   getTaskById,
@@ -541,5 +541,5 @@ module.exports = {
   getReceivedTasks,
   solicitarReapertura,
   responderReapertura,
-  getSolicitudesReaperturaPendientes,
+  getSolicitudesReaperturaPendientes
 };

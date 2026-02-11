@@ -1,8 +1,8 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/bd');
-const Usuario = require('./usuarios');
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../config/bd.js';
+import Usuario from './usuarios.js';
 
-const Tarea = sequelize.define(
+export const Tarea = sequelize.define(
   'Tarea',
   {
     id_tarea: {
@@ -98,6 +98,4 @@ Tarea.belongsTo(Usuario, {
   foreignKey: 'creadorId',
   as: 'creador',
 });
-
-module.exports = { Tarea };
 

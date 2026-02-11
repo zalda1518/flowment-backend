@@ -1,4 +1,4 @@
-const { pool } = require('../config/bd');
+import { pool } from '../config/bd.js';
 
 // Helper para encontrar un usuario por email
 const findUsuarioByEmail = async (email) => {
@@ -110,6 +110,8 @@ const updateUsuario = async (id, data) => {
     fields.push('area = ?');
     values.push(data.area);
   }
+
+  if (fields.length === 0) return false;
 
   values.push(id);
 
@@ -282,7 +284,7 @@ const getTaskStats = async (userId) => {
   return stats[0] || {};
 };
 
-module.exports = {
+export {
   findUsuarioByEmail,
   findUsuarioById,
   createUsuario,

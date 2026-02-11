@@ -1,16 +1,16 @@
-const { pool } = require('../config/bd');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const ExcelJS = require('exceljs');
-const {
+import { pool } from '../config/bd.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import ExcelJS from 'exceljs';
+import {
   findUsuarioByEmail,
   findUsuarioById,
   createUsuario,
   findAllUsuarios,
   findColaboradores,
-  updateUsuario: updateUsuarioDB,
-  deleteUsuario: deleteUsuarioDB,
-} = require('../helpers/queryHelper');
+  updateUsuario as updateUsuarioDB,
+  deleteUsuario as deleteUsuarioDB,
+} from '../helpers/queryHelper.js';
 
 // Generar token JWT
 const generateToken = (id_usuario, rol) => {
@@ -549,5 +549,16 @@ const exportarColaboradores = async (req, res) => {
   }
 };
 
-module.exports = { login, register, getProfile, getColaboradores, getAllUsuarios, getUsuarioById, updateUsuario, deleteUsuario, exportarUsuarios, exportarColaboradores };
+export {
+  login,
+  register,
+  getProfile,
+  getColaboradores,
+  getAllUsuarios,
+  getUsuarioById,
+  updateUsuario,
+  deleteUsuario,
+  exportarUsuarios,
+  exportarColaboradores
+};
 
