@@ -64,7 +64,7 @@ const findAllUsuarios = async (where = {}, exclude = []) => {
 // Helper para obtener colaboradores
 const findColaboradores = async (organizacion) => {
   const [rows] = await pool.query(
-    `SELECT id_usuario as id, name as nombre, email, rol, organizacion 
+    `SELECT id_usuario, name, email, rol, organizacion, area, tipoDocumento, numeroDocumento, estado
      FROM usuarios 
      WHERE rol = 'colaborador' AND organizacion = ? 
      ORDER BY name ASC`,

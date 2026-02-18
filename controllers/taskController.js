@@ -34,7 +34,6 @@ const createTask = async (req, res) => {
       fechaAsignacion: fechaAsignacion,
       horaAsignacion: horaAsignacion,
       estado: 'asignada',
-      prioridad: 'media',
     });
 
     const tarea = await findTareaById(tareaId);
@@ -47,7 +46,6 @@ const createTask = async (req, res) => {
         descripcion: tarea.descripcion,
         area: tarea.area,
         estado: tarea.estado,
-        prioridad: tarea.prioridad,
         fechaAsignacion: tarea.fecha_asignacion,
         horaAsignacion: tarea.hora_asignacion,
         fechaVencimiento: tarea.fecha_vencimiento,
@@ -89,7 +87,6 @@ const getAllTasks = async (req, res) => {
       descripcion: t.descripcion,
       area: t.area,
       estado: t.estado,
-      prioridad: t.prioridad,
       fechaAsignacion: t.fecha_asignacion,
       horaAsignacion: t.hora_asignacion,
       fechaVencimiento: t.fecha_vencimiento,
@@ -133,7 +130,6 @@ const getTaskById = async (req, res) => {
       descripcion: tarea.descripcion,
       area: tarea.area,
       estado: tarea.estado,
-      prioridad: tarea.prioridad,
       fechaAsignacion: tarea.fecha_asignacion,
       horaAsignacion: tarea.hora_asignacion,
       fechaVencimiento: tarea.fecha_vencimiento,
@@ -177,7 +173,7 @@ const updateTask = async (req, res) => {
       if (req.body.titulo) dataToUpdate.titulo = req.body.titulo;
       if (req.body.descripcion !== undefined) dataToUpdate.descripcion = req.body.descripcion;
       if (req.body.estado) dataToUpdate.estado = req.body.estado;
-      if (req.body.prioridad) dataToUpdate.prioridad = req.body.prioridad;
+    
 
       await updateTarea(req.params.id, dataToUpdate);
     } else {
@@ -212,7 +208,6 @@ const updateTask = async (req, res) => {
       descripcion: tareaActualizada.descripcion,
       area: tareaActualizada.area,
       estado: tareaActualizada.estado,
-      prioridad: tareaActualizada.prioridad,
       fechaAsignacion: tareaActualizada.fecha_asignacion,
       horaAsignacion: tareaActualizada.hora_asignacion,
       fechaVencimiento: tareaActualizada.fecha_vencimiento,
@@ -301,7 +296,6 @@ const getReceivedTasks = async (req, res) => {
       descripcion: t.descripcion,
       area: t.area,
       estado: t.estado,
-      prioridad: t.prioridad,
       fechaAsignacion: t.fecha_asignacion,
       horaAsignacion: t.hora_asignacion,
       fechaVencimiento: t.fecha_vencimiento,
