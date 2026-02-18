@@ -135,10 +135,10 @@ const createTarea = async (data) => {
     area,
     asignedTo,
     createdBy,
-    fecha_asignacion,
-    hora_asignacion,
-    fecha_vencimiento,
-    hora_vencimiento,
+    fechaAsignacion,
+    horaAsignacion,
+    fechaVencimiento,
+    horaVencimiento,
     estado,
    
   } = data;
@@ -146,7 +146,7 @@ const createTarea = async (data) => {
   const [result] = await pool.query(
     `INSERT INTO tareas (titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  NOW())`,
-    [titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado,]
+    [titulo, descripcion, area, asignedTo, createdBy, fechaAsignacion, horaAsignacion, fechaVencimiento, horaVencimiento, estado,]
   );
   return result.insertId;
 };
