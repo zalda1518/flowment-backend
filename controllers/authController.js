@@ -214,7 +214,8 @@ const getUsuarioById = async (req, res) => {
 const updateUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, tipoDocumento, numeroDocumento, rol, organizacion, estado } = req.body;
+    const { name, email, tipoDocumento, numeroDocumento, rol, organizacion, estado, area } = req.body;
+
 
     const usuario = await findUsuarioById(id);
 
@@ -253,6 +254,8 @@ const updateUsuario = async (req, res) => {
     if (rol) dataToUpdate.rol = rol;
     if (organizacion) dataToUpdate.organizacion = organizacion;
     if (estado) dataToUpdate.estado = estado;
+    if (area) dataToUpdate.area = area;
+
 
     await updateUsuarioDB(id, dataToUpdate);
 
