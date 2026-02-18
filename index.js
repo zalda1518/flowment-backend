@@ -13,9 +13,9 @@ app.use(cors());
 app.use(express.json());
 
 // Rutas API
-app.use('/api/auth', authRoutes);
-app.use('/api/tareas', taskRoutes);
-app.use('/api/reportes', reporteRoutes);
+app.use('/auth', authRoutes);
+app.use('/tareas', taskRoutes);
+app.use('/reportes', reporteRoutes);
 
 const PORT = process.env.PORT || 3001;
 
