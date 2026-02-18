@@ -11,7 +11,6 @@ const { pool } = require('../config/bd');
 // Crear tarea
 const createTask = async (req, res) => {
   try {
-    // Validar que el usuario sea TeamLeader
     const usuario = await findUsuarioById(req.userId);
     
     if (!usuario || usuario.rol !== 'TeamLeader') {
@@ -30,10 +29,10 @@ const createTask = async (req, res) => {
       area,
       asignedTo: colaboradorId,
       createdBy: req.userId,
-      fecha_vencimiento: fechaVencimiento,
-      hora_vencimiento: horaVencimiento,
-      fecha_asignacion: fechaAsignacion,
-      hora_asignacion: horaAsignacion,
+      fechaVencimiento: fechaVencimiento,
+      horaVencimiento: horaVencimiento,
+      fechaAsignacion: fechaAsignacion,
+      horaAsignacion: horaAsignacion,
       estado: 'asignada',
       prioridad: 'media',
     });
@@ -49,14 +48,15 @@ const createTask = async (req, res) => {
         area: tarea.area,
         estado: tarea.estado,
         prioridad: tarea.prioridad,
-        fecha_asignacion: tarea.fecha_asignacion,
-        hora_asignacion: tarea.hora_asignacion,
-        fecha_vencimiento: tarea.fecha_vencimiento,
-        hora_vencimiento: tarea.hora_vencimiento,
+        fechaAsignacion: tarea.fecha_asignacion,
+        horaAsignacion: tarea.hora_asignacion,
+        fechaVencimiento: tarea.fecha_vencimiento,
+        horaVencimiento: tarea.hora_vencimiento,
         colaborador: {
           id_usuario: tarea.asignedTo,
           name: tarea.colaborador_name,
           email: tarea.colaborador_email,
+          numeroDocumento: tarea.numeroDocumento,
         },
         creador: {
           id_usuario: tarea.createdBy,
@@ -83,7 +83,6 @@ const getAllTasks = async (req, res) => {
 
     const tareas = await findTareas(where);
 
-    // Procesar y formatear tareas
     const tareasProcessadas = tareas.map(t => ({
       id_tarea: t.id_tarea,
       titulo: t.titulo,
@@ -91,14 +90,14 @@ const getAllTasks = async (req, res) => {
       area: t.area,
       estado: t.estado,
       prioridad: t.prioridad,
-      fecha_asignacion: t.fecha_asignacion,
-      hora_asignacion: t.hora_asignacion,
-      fecha_vencimiento: t.fecha_vencimiento,
-      hora_vencimiento: t.hora_vencimiento,
-      resumen_finalizacion: t.resumen_finalizacion,
+      fechaAsignacion: t.fecha_asignacion,
+      horaAsignacion: t.hora_asignacion,
+      fechaVencimiento: t.fecha_vencimiento,
+      horaVencimiento: t.hora_vencimiento,
+      resumenFinalizacion: t.resumen_finalizacion,
       observacion: t.observacion,
       createdAt: t.createdAt,
-      solicitud_reapertura: parseJSON(t.solicitud_reapertura),
+      solicitudReapertura: parseJSON(t.solicitud_reapertura),
       colaborador: {
         id_usuario: t.asignedTo,
         name: t.colaborador_name,
@@ -135,14 +134,14 @@ const getTaskById = async (req, res) => {
       area: tarea.area,
       estado: tarea.estado,
       prioridad: tarea.prioridad,
-      fecha_asignacion: tarea.fecha_asignacion,
-      hora_asignacion: tarea.hora_asignacion,
-      fecha_vencimiento: tarea.fecha_vencimiento,
-      hora_vencimiento: tarea.hora_vencimiento,
-      resumen_finalizacion: tarea.resumen_finalizacion,
+      fechaAsignacion: tarea.fecha_asignacion,
+      horaAsignacion: tarea.hora_asignacion,
+      fechaVencimiento: tarea.fecha_vencimiento,
+      horaVencimiento: tarea.hora_vencimiento,
+      resumenFinalizacion: tarea.resumen_finalizacion,
       observacion: tarea.observacion,
       createdAt: tarea.createdAt,
-      solicitud_reapertura: parseJSON(tarea.solicitud_reapertura),
+      solicitudReapertura: parseJSON(tarea.solicitud_reapertura),
       colaborador: {
         id_usuario: tarea.asignedTo,
         name: tarea.colaborador_name,
@@ -173,7 +172,6 @@ const updateTask = async (req, res) => {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
-    // Si es TeamLeader, puede actualizar todo
     if (usuario && usuario.rol === 'TeamLeader') {
       const dataToUpdate = {};
       if (req.body.titulo) dataToUpdate.titulo = req.body.titulo;
@@ -183,7 +181,6 @@ const updateTask = async (req, res) => {
 
       await updateTarea(req.params.id, dataToUpdate);
     } else {
-      // Colaborador solo puede mover estado a en-proceso o finalizada
       const { estado, resumenFinalizacion } = req.body;
       const permitidos = ['en-proceso', 'finalizada'];
 
@@ -191,7 +188,6 @@ const updateTask = async (req, res) => {
         return res.status(403).json({ message: 'No autorizado para esta tarea' });
       }
       
-      // Validar que no intente cambiar desde finalizada
       if (tarea.estado === 'finalizada') {
         return res.status(403).json({ message: 'No se puede cambiar una tarea finalizada' });
       }
@@ -208,7 +204,6 @@ const updateTask = async (req, res) => {
       await updateTarea(req.params.id, dataToUpdate);
     }
 
-    // Obtener tarea actualizada
     const tareaActualizada = await findTareaById(req.params.id);
 
     const tareaFormateada = {
@@ -218,13 +213,14 @@ const updateTask = async (req, res) => {
       area: tareaActualizada.area,
       estado: tareaActualizada.estado,
       prioridad: tareaActualizada.prioridad,
-      fecha_asignacion: tareaActualizada.fecha_asignacion,
-      hora_asignacion: tareaActualizada.hora_asignacion,
-      fecha_vencimiento: tareaActualizada.fecha_vencimiento,
-      hora_vencimiento: tareaActualizada.hora_vencimiento,
-      resumen_finalizacion: tareaActualizada.resumen_finalizacion,
+      fechaAsignacion: tareaActualizada.fecha_asignacion,
+      horaAsignacion: tareaActualizada.hora_asignacion,
+      fechaVencimiento: tareaActualizada.fecha_vencimiento,
+      horaVencimiento: tareaActualizada.hora_vencimiento,
+      resumenFinalizacion: tareaActualizada.resumen_finalizacion,
       observacion: tareaActualizada.observacion,
       createdAt: tareaActualizada.createdAt,
+      solicitudReapertura: parseJSON(tareaActualizada.solicitud_reapertura),
       colaborador: {
         id_usuario: tareaActualizada.asignedTo,
         name: tareaActualizada.colaborador_name,
@@ -247,7 +243,6 @@ const updateTask = async (req, res) => {
     return res.status(500).json({ message: 'Error en el servidor', error: error.message });
   }
 };
-
 // Agregar observación por atraso
 const agregarObservacion = async (req, res) => {
   try {
@@ -275,6 +270,7 @@ const agregarObservacion = async (req, res) => {
         id_usuario: tareaActualizada.asignedTo,
         name: tareaActualizada.colaborador_name,
         email: tareaActualizada.colaborador_email,
+        numeroDocumento: tareaActualizada.numeroDocumento,
       },
       creador: {
         id_usuario: tareaActualizada.createdBy,
@@ -306,14 +302,14 @@ const getReceivedTasks = async (req, res) => {
       area: t.area,
       estado: t.estado,
       prioridad: t.prioridad,
-      fecha_asignacion: t.fecha_asignacion,
-      hora_asignacion: t.hora_asignacion,
-      fecha_vencimiento: t.fecha_vencimiento,
-      hora_vencimiento: t.hora_vencimiento,
-      resumen_finalizacion: t.resumen_finalizacion,
+      fechaAsignacion: t.fecha_asignacion,
+      horaAsignacion: t.hora_asignacion,
+      fechaVencimiento: t.fecha_vencimiento,
+      horaVencimiento: t.hora_vencimiento,
+      resumenFinalizacion: t.resumen_finalizacion,
       observacion: t.observacion,
       createdAt: t.createdAt,
-      solicitud_reapertura: parseJSON(t.solicitud_reapertura),
+      solicitudReapertura: parseJSON(t.solicitud_reapertura),
       colaborador: {
         id_usuario: t.asignedTo,
         name: t.colaborador_name,
@@ -345,17 +341,14 @@ const solicitarReapertura = async (req, res) => {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
-    // Verificar que el usuario sea el colaborador asignado
     if (tarea.asignedTo !== userId) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    // Verificar que la tarea esté finalizada
     if (tarea.estado !== 'finalizada') {
       return res.status(400).json({ message: 'Solo se pueden reabrir tareas finalizadas' });
     }
 
-    // Guardar la solicitud
     const solicitud = {
       motivo,
       solicitadoPor: userId,
@@ -371,11 +364,12 @@ const solicitarReapertura = async (req, res) => {
       id_tarea: tareaActualizada.id_tarea,
       titulo: tareaActualizada.titulo,
       estado: tareaActualizada.estado,
-      solicitud_reapertura: parseJSON(tareaActualizada.solicitud_reapertura),
+      solicitudReapertura: parseJSON(tareaActualizada.solicitud_reapertura),
       colaborador: {
         id_usuario: tareaActualizada.asignedTo,
         name: tareaActualizada.colaborador_name,
         email: tareaActualizada.colaborador_email,
+        numeroDocumento: tareaActualizada.numeroDocumento,
       },
       creador: {
         id_usuario: tareaActualizada.createdBy,
@@ -403,12 +397,10 @@ const responderReapertura = async (req, res) => {
       return res.status(404).json({ message: 'Tarea no encontrada' });
     }
 
-    // Verificar que el usuario sea el creador (TeamLeader)
     if (tarea.createdBy !== userId) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    // Verificar que haya solicitud pendiente
     let solicitudActual = parseJSON(tarea.solicitud_reapertura);
     
     if (!solicitudActual || solicitudActual.estado !== 'pendiente') {
@@ -418,7 +410,6 @@ const responderReapertura = async (req, res) => {
     let dataToUpdate = {};
 
     if (aprobada) {
-      // Aprobar: cambiar estado a asignada y actualizar fechas
       dataToUpdate.estado = 'asignada';
       if (nuevaFechaVencimiento) {
         dataToUpdate.fecha_vencimiento = nuevaFechaVencimiento;
@@ -434,7 +425,6 @@ const responderReapertura = async (req, res) => {
         respondidoPor: userId
       };
     } else {
-      // Rechazar: mantener finalizada
       solicitudActual = {
         ...solicitudActual,
         estado: 'rechazada',
@@ -453,11 +443,12 @@ const responderReapertura = async (req, res) => {
       id_tarea: tareaActualizada.id_tarea,
       titulo: tareaActualizada.titulo,
       estado: tareaActualizada.estado,
-      solicitud_reapertura: parseJSON(tareaActualizada.solicitud_reapertura),
+      solicitudReapertura: parseJSON(tareaActualizada.solicitud_reapertura),
       colaborador: {
         id_usuario: tareaActualizada.asignedTo,
         name: tareaActualizada.colaborador_name,
         email: tareaActualizada.colaborador_email,
+        numeroDocumento: tareaActualizada.numeroDocumento,
       },
       creador: {
         id_usuario: tareaActualizada.createdBy,
@@ -475,13 +466,18 @@ const responderReapertura = async (req, res) => {
   }
 };
 
-// Obtener solicitudes de reapertura pendientes
+// Obtener solicitudes pendientes
 const getSolicitudesReaperturaPendientes = async (req, res) => {
   try {
     const userId = req.userId;
     
     const [tareas] = await pool.query(
-      `SELECT t.*, u1.name as colaborador_name, u1.email as colaborador_email, u1.numeroDocumento, u2.name as creador_name, u2.email as creador_email 
+      `SELECT t.*, 
+              u1.name as colaborador_name, 
+              u1.email as colaborador_email, 
+              u1.numeroDocumento,
+              u2.name as creador_name, 
+              u2.email as creador_email 
        FROM tareas t 
        LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario 
        LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario 
@@ -490,7 +486,6 @@ const getSolicitudesReaperturaPendientes = async (req, res) => {
       [userId]
     );
 
-    // Filtrar solo las que tienen solicitud pendiente
     const conSolicitud = tareas.filter(t => {
       let solicitud = parseJSON(t.solicitud_reapertura);
       return solicitud && solicitud.estado === 'pendiente';
@@ -498,11 +493,12 @@ const getSolicitudesReaperturaPendientes = async (req, res) => {
       id_tarea: t.id_tarea,
       titulo: t.titulo,
       estado: t.estado,
-      solicitud_reapertura: parseJSON(t.solicitud_reapertura),
+      solicitudReapertura: parseJSON(t.solicitud_reapertura),
       colaborador: {
         id_usuario: t.asignedTo,
         name: t.colaborador_name,
         email: t.colaborador_email,
+        numeroDocumento: t.numeroDocumento,
       },
       creador: {
         id_usuario: t.createdBy,
@@ -518,7 +514,7 @@ const getSolicitudesReaperturaPendientes = async (req, res) => {
   }
 };
 
-// Función auxiliar para parsear JSON
+// Función auxiliar
 function parseJSON(str) {
   if (!str) return null;
   if (typeof str !== 'string') return str;
