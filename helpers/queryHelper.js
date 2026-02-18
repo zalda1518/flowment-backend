@@ -153,8 +153,39 @@ const createTarea = async (data) => {
 
 // Helper para obtener tareas
 const findTareas = async (where = {}) => {
-let query = 'SELECT t.*, u1.name as colaborador_name, u1.email as colaborador_email, u1.numeroDocumento, u2.name as creador_name, u2.email as creador_email FROM tareas t LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario WHERE 1=1';
-;
+let query = `
+SELECT 
+t.id_tarea,
+t.titulo,
+t.descripcion,
+t.area,
+t.fecha_asignacion AS fechaAsignacion,
+t.fecha_vencimiento AS fechaVencimiento,
+t.hora_asignacion AS horaAsignacion,
+t.hora_vencimiento AS horaVencimiento,
+t.estado,
+t.observacion,
+t.createdAt,
+t.createdBy,
+t.asignedTo,
+t.resumen_finalizacion AS resumenFinalizacion,
+t.solicitud_reapertura AS solicitudReapertura,
+
+u1.id_usuario AS colaboradorId,
+u1.name AS colaborador_name,
+u1.email AS colaborador_email,
+u1.numeroDocumento,
+
+u2.id_usuario AS creadorId,
+u2.name AS creador_name,
+u2.email AS creador_email
+
+FROM tareas t
+LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario
+LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario
+WHERE 1=1
+`;
+
   const params = [];
 
   if (where.id_tarea) {
