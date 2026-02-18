@@ -140,13 +140,13 @@ const createTarea = async (data) => {
     fecha_vencimiento,
     hora_vencimiento,
     estado,
-    prioridad
+   
   } = data;
 
   const [result] = await pool.query(
-    `INSERT INTO tareas (titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado, prioridad, createdAt)
+    `INSERT INTO tareas (titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado, prioridad]
+    [titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado,]
   );
   return result.insertId;
 };
@@ -222,11 +222,7 @@ const updateTarea = async (id, data) => {
     fields.push('solicitud_reapertura = ?');
     values.push(data.solicitud_reapertura ? JSON.stringify(data.solicitud_reapertura) : null);
   }
-  if (data.prioridad !== undefined) {
-    fields.push('prioridad = ?');
-    values.push(data.prioridad);
-  }
-
+ 
   if (fields.length === 0) return false;
 
   values.push(id);
