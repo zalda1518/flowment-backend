@@ -51,6 +51,7 @@ const findAllUsuarios = async (where = {}, exclude = []) => {
 
   const [rows] = await pool.query(query, params);
   
+  // Excluir campos si es necesario
   if (exclude.includes('password')) {
     return rows.map(row => {
       const { password, ...rest } = row;
@@ -139,51 +140,21 @@ const createTarea = async (data) => {
     fecha_vencimiento,
     hora_vencimiento,
     estado,
+   
   } = data;
 
   const [result] = await pool.query(
     `INSERT INTO tareas (titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  NOW())`,
+    [titulo, descripcion, area, asignedTo, createdBy, fecha_asignacion, hora_asignacion, fecha_vencimiento, hora_vencimiento, estado,]
   );
   return result.insertId;
 };
 
 // Helper para obtener tareas
 const findTareas = async (where = {}) => {
-let query = `
-SELECT 
-t.id_tarea,
-t.titulo,
-t.descripcion,
-t.area,
-t.fecha_asignacion AS fechaAsignacion,
-t.fecha_vencimiento AS fechaVencimiento,
-t.hora_asignacion AS horaAsignacion,
-t.hora_vencimiento AS horaVencimiento,
-t.estado,
-t.observacion,
-t.createdAt,
-t.createdBy,
-t.asignedTo,
-t.resumen_finalizacion AS resumenFinalizacion,
-t.solicitud_reapertura AS solicitudReapertura,
-
-u1.id_usuario AS colaboradorId,
-u1.name AS colaborador_name,
-u1.email AS colaborador_email,
-u1.numeroDocumento,
-
-u2.id_usuario AS creadorId,
-u2.name AS creador_name,
-u2.email AS creador_email
-
-FROM tareas t
-LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario
-LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario
-WHERE 1=1
-`;
-
+let query = 'SELECT t.*, u1.name as colaborador_name, u1.email as colaborador_email, u1.numeroDocumento, u2.name as creador_name, u2.email as creador_email FROM tareas t LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario WHERE 1=1';
+;
   const params = [];
 
   if (where.id_tarea) {
@@ -212,33 +183,11 @@ WHERE 1=1
 // Helper para obtener una tarea por ID
 const findTareaById = async (id) => {
   const [rows] = await pool.query(
-    `
-    SELECT 
-      t.id_tarea,
-      t.titulo,
-      t.descripcion,
-      t.area,
-      t.fecha_asignacion AS fechaAsignacion,
-      t.fecha_vencimiento AS fechaVencimiento,
-      t.hora_asignacion AS horaAsignacion,
-      t.hora_vencimiento AS horaVencimiento,
-      t.estado,
-      t.observacion,
-      t.createdAt,
-      t.createdBy,
-      t.asignedTo,
-      t.resumen_finalizacion AS resumenFinalizacion,
-      t.solicitud_reapertura AS solicitudReapertura,
-      u1.name as colaborador_name,
-      u1.email as colaborador_email,
-      u1.numeroDocumento,
-      u2.name as creador_name,
-      u2.email as creador_email 
+    `SELECT t.*, u1.name as colaborador_name, u1.email as colaborador_email, u1.numeroDocumento, u2.name as creador_name, u2.email as creador_email 
      FROM tareas t 
      LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario 
      LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario 
-     WHERE t.id_tarea = ?
-    `,
+     WHERE t.id_tarea = ?`,
     [id]
   );
   return rows.length > 0 ? rows[0] : null;
@@ -273,7 +222,7 @@ const updateTarea = async (id, data) => {
     fields.push('solicitud_reapertura = ?');
     values.push(data.solicitud_reapertura ? JSON.stringify(data.solicitud_reapertura) : null);
   }
-
+ 
   if (fields.length === 0) return false;
 
   values.push(id);
@@ -283,27 +232,12 @@ const updateTarea = async (id, data) => {
   return result.affectedRows > 0;
 };
 
-// Helper para obtener tareas recibidas
+// Helper para obtener tareas recibidas por un usuario
 const findTareasRecibidas = async (userId, estado = null) => {
-  let query = `
-    SELECT 
-      t.id_tarea,
-      t.titulo,
-      t.descripcion,
-      t.area,
-      t.fecha_asignacion AS fechaAsignacion,
-      t.fecha_vencimiento AS fechaVencimiento,
-      t.hora_asignacion AS horaAsignacion,
-      t.hora_vencimiento AS horaVencimiento,
-      t.estado,
-      t.createdAt,
-      u.name as creador_name,
-      u.email as creador_email
-    FROM tareas t 
-    JOIN usuarios u ON t.createdBy = u.id_usuario 
-    WHERE t.asignedTo = ?
-  `;
-
+  let query = `SELECT t.*, u.name as creador_name, u.email as creador_email 
+               FROM tareas t 
+               JOIN usuarios u ON t.createdBy = u.id_usuario 
+               WHERE t.asignedTo = ?`;
   const params = [userId];
 
   if (estado) {
@@ -317,36 +251,20 @@ const findTareasRecibidas = async (userId, estado = null) => {
   return rows;
 };
 
-// Helper para obtener tareas asignadas
+// Helper para obtener tareas asignadas por un usuario
 const findTareasAsignadas = async (userId) => {
   const [rows] = await pool.query(
-    `
-    SELECT 
-      t.id_tarea,
-      t.titulo,
-      t.descripcion,
-      t.area,
-      t.fecha_asignacion AS fechaAsignacion,
-      t.fecha_vencimiento AS fechaVencimiento,
-      t.hora_asignacion AS horaAsignacion,
-      t.hora_vencimiento AS horaVencimiento,
-      t.estado,
-      t.createdAt,
-      u.id_usuario AS colaboradorId,
-      u.name as colaborador_name,
-      u.email as colaborador_email,
-      u.numeroDocumento 
+    `SELECT t.*, u.name as colaborador_name, u.email as colaborador_email, u.numeroDocumento 
      FROM tareas t 
      JOIN usuarios u ON t.asignedTo = u.id_usuario 
      WHERE t.createdBy = ? 
-     ORDER BY t.estado ASC, t.fecha_vencimiento ASC
-    `,
+     ORDER BY t.estado ASC, t.fecha_vencimiento ASC`,
     [userId]
   );
   return rows;
 };
 
-// Helper para estadísticas
+// Helper para obtener estadísticas de tareas
 const getTaskStats = async (userId) => {
   const [stats] = await pool.query(
     `SELECT 
