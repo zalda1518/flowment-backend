@@ -163,13 +163,7 @@ const getProfile = async (req, res) => {
 // Obtener colaboradores por organización
 const getColaboradores = async (req, res) => {
   try {
-    let { organizacion } = req.query;
-
-    // Si no se envía organizacion, intentar obtenerla del usuario autenticado
-    if (!organizacion && req.userId) {
-      const usuario = await findUsuarioById(req.userId);
-      organizacion = usuario?.organizacion;
-    }
+    const { organizacion } = req.query;
 
     if (!organizacion) {
       return res.status(400).json({ message: 'La organización es requerida' });
@@ -177,11 +171,10 @@ const getColaboradores = async (req, res) => {
 
     const colaboradores = await findColaboradores(organizacion);
 
-    // Devuelve un array (aunque esté vacío) para evitar problemas en frontend
-    return res.status(200).json(Array.isArray(colaboradores) ? colaboradores : []);
+    res.status(200).json(colaboradores);
   } catch (error) {
-    console.error('Error en getColaboradores:', error.message, error);
-    return res.status(500).json({ message: 'Error al obtener colaboradores', error: error.message });
+    console.error('Error en getColaboradores:', error.message);
+    res.status(500).json({ message: 'Error al obtener colaboradores', error: error.message });
   }
 };
 
