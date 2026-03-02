@@ -283,8 +283,8 @@ const agregarObservacion = async (req, res) => {
       if (destinatarioId) {
         const textoNotif = (observacion || '').toString().trim().slice(0, 1000);
         await createNotification({
-          user_id: destinatarioId,
-          tarea_id: tareaActualizada.id_tarea,
+          id_usuario: destinatarioId,
+          id_tarea: tareaActualizada.id_tarea,
           tipo: 'observacion',
           texto: textoNotif
         });
