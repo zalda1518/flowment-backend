@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { getUnreadNotifications, markNotificationRead } = require('../controllers/notificationsController')
-const authMiddleware = require('../middleware/authMiddleware') // asegúrate que setea req.userId
+const { authMiddleware } = require('../middleware/auth')
 
 
 // Rutas de notificaciones

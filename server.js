@@ -6,6 +6,7 @@ const { connectDB } = require('./config/bd');
 const authRoutes = require('./routes/authRoutes'); 
 const taskRoutes = require('./routes/taskRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 app.use(cors());
@@ -17,6 +18,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/tareas', taskRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api', notificationsRoutes);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

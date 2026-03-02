@@ -185,6 +185,26 @@ const findTareas = async (where = {}) => {
   return rows
 }
 
+// Obtener tareas recibidas por colaborador
+const findTareasRecibidas = async (asignedTo) => {
+  const [rows] = await pool.query(
+    `SELECT t.*, 
+            u1.name as colaborador_name, 
+            u1.email as colaborador_email, 
+            u1.numeroDocumento,
+            u2.name as creador_name, 
+            u2.email as creador_email
+     FROM tareas t
+     LEFT JOIN usuarios u1 ON t.asignedTo = u1.id_usuario
+     LEFT JOIN usuarios u2 ON t.createdBy = u2.id_usuario
+     WHERE t.asignedTo = ?
+     ORDER BY t.createdAt DESC`,
+    [asignedTo]
+  )
+
+  return rows
+}
+
 // Obtener tarea por ID
 const findTareaById = async (id) => {
   const [rows] = await pool.query(
@@ -310,6 +330,7 @@ module.exports = {
   deleteUsuario,
   createTarea,
   findTareas,
+  findTareasRecibidas,
   findTareaById,
   updateTarea,
   createNotification,
