@@ -7,7 +7,7 @@ const {
   findTareasRecibidas,
 } = require('../helpers/queryHelper');
 const { pool } = require('../config/bd');
-const { createNotification } = require('./notificationsController');
+const { createNotification } = require('../helpers/queryHelper') // usar helper nuevo
 
 // Crear tarea
 const createTask = async (req, res) => {
@@ -245,11 +245,7 @@ const agregarObservacion = async (req, res) => {
     const { observacion } = req.body;
     const tarea = await findTareaById(req.params.id);
 
-    if (!tarea) {
-      return res.status(404).json({ message: 'Tarea no encontrada' });
-    }
-
-    const usuario = await findUsuarioById(req.userId);
+    if (!tarea) return res.status(404).json({ message: 'Tarea no encontrada' });
 
     // Actualizar la observación en la tarea
     await updateTarea(req.params.id, { observacion });
@@ -257,49 +253,39 @@ const agregarObservacion = async (req, res) => {
     // Obtener la tarea actualizada
     const tareaActualizada = await findTareaById(req.params.id);
 
-    const tareaFormateada = {
-      id_tarea: tareaActualizada.id_tarea,
-      titulo: tareaActualizada.titulo,
-      descripcion: tareaActualizada.descripcion,
-      area: tareaActualizada.area,
-      estado: tareaActualizada.estado,
-      observacion: tareaActualizada.observacion,
-      colaborador: {
-        id_usuario: tareaActualizada.asignedTo,
-        name: tareaActualizada.colaborador_name,
-        email: tareaActualizada.colaborador_email,
-        numeroDocumento: tareaActualizada.numeroDocumento,
-      },
-      creador: {
-        id_usuario: tareaActualizada.createdBy,
-        name: tareaActualizada.creador_name,
-        email: tareaActualizada.creador_email,
-      }
-    };
+    // Determinar destinatario probando varias propiedades posibles
+    const destinatarioId =
+      tareaActualizada.asignedTo ??
+      tareaActualizada.asigned_to ??
+      tareaActualizada.assigned_to ??
+      tareaActualizada.asigned_to_user ??
+      tareaActualizada.asigned_to_id ??
+      tareaActualizada.colaborador?.id_usuario ??
+      tareaActualizada.colaboradorId ??
+      tareaActualizada.colaborador_id ??
+      tareaActualizada.id_usuario_asignado ?? null
+
+    console.log('agregarObservacion - tareaId=', tareaActualizada.id_tarea, 'destinatarioId=', destinatarioId)
 
     // Crear notificación para el colaborador asignado (si existe)
     try {
-      const destinatarioId = tareaActualizada.asignedTo;
       if (destinatarioId) {
         const textoNotif = (observacion || '').toString().trim().slice(0, 1000);
-        await createNotification({
+        const notif = await createNotification({
           id_usuario: destinatarioId,
           id_tarea: tareaActualizada.id_tarea,
           tipo: 'observacion',
           texto: textoNotif
         });
+        console.log('Notification created:', notif)
       } else {
-        console.warn(`No se creó notificación: tarea ${tareaActualizada.id_tarea} no tiene asignedTo.`);
+        console.warn(`No se creó notificación: tarea ${tareaActualizada.id_tarea} no tiene destinatario reconocible.`)
       }
     } catch (notifErr) {
-      // No bloquear la respuesta principal si falla la notificación
       console.error('Error creando notificación de observación:', notifErr);
     }
 
-    return res.json({
-      message: 'Observación agregada exitosamente',
-      tarea: tareaFormateada
-    });
+    return res.json({ message: 'Observación agregada exitosamente', tarea: tareaActualizada });
   } catch (error) {
     console.error('Error en agregarObservacion:', error);
     return res.status(500).json({ message: 'Error al agregar observación', error: error.message });

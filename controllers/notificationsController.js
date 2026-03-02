@@ -1,8 +1,9 @@
 const { pool } = require('../config/bd')
+const { createNotification: createNotificationHelper, findUnreadNotificationsByUser, markNotificationReadById } = require('../helpers/queryHelper')
 
 // Crear notificación (util para llamar desde otros controladores)
 const createNotification = async ({ id_usuario, id_tarea = null, tipo = 'observacion', texto = '' }) => {
-  const sql = `INSERT INTO notifications (user_id, tarea_id, tipo, texto) VALUES ($1,$2,$3,$4) RETURNING *`
+  const sql = `INSERT INTO notifications (id_usuario, id_tarea, tipo, texto) VALUES ($1,$2,$3,$4) RETURNING *`
   const { rows } = await pool.query(sql, [id_usuario, id_tarea, tipo, texto])
   return rows[0]
 }
@@ -11,30 +12,33 @@ const createNotification = async ({ id_usuario, id_tarea = null, tipo = 'observa
 const getUnreadNotifications = async (req, res) => {
   try {
     const userId = req.userId
-    const sql = `SELECT id, id_usuario, id_tarea, tipo, texto, created_at FROM notifications WHERE id_usuario = $1 AND leido = FALSE ORDER BY created_at DESC`
-    const { rows } = await pool.query(sql, [userId])
+    if (!userId) return res.status(401).json({ message: 'Usuario no autenticado' })
+    console.log('GET /notifications for userId=', userId)
+    const rows = await findUnreadNotificationsByUser(userId)
     return res.status(200).json(rows)
   } catch (err) {
     console.error('Error getUnreadNotifications:', err)
-    return res.status(500).json({ message: 'Error obteniendo notificaciones' })
+    return res.status(500).json({ message: 'Error obteniendo notificaciones', error: err.message })
   }
 }
 
 // Endpoint: marcar notificación como leída
 const markNotificationRead = async (req, res) => {
   try {
-    const id_usuario = req.params.id
-    // opcional: verificar que la notificación pertenece al usuario (seguridad)
-    await pool.query(`UPDATE notifications SET leido = TRUE WHERE id = $1`, [id_usuario])
+    const id = req.params.id
+    const userId = req.userId
+    if (!id) return res.status(400).json({ message: 'Id de notificación requerido' })
+    await markNotificationReadById(id, userId)
     return res.status(200).json({ ok: true })
   } catch (err) {
     console.error('Error markNotificationRead:', err)
-    return res.status(500).json({ message: 'Error marcando notificación' })
+    return res.status(500).json({ message: 'Error marcando notificación', error: err.message })
   }
 }
 
+// Exportar también utilidad para uso interno (si la necesitas)
 module.exports = {
-  createNotification,
   getUnreadNotifications,
-  markNotificationRead
+  markNotificationRead,
+  createNotification: createNotificationHelper
 }

@@ -1,4 +1,4 @@
-const { pool } = require('../config/bd');
+const { pool } = require('../config/bd')
 
 // Helper para encontrar un usuario por email
 const findUsuarioByEmail = async (email) => {
@@ -279,6 +279,30 @@ const getTaskStats = async (userId) => {
   return stats[0] || {};
 };
 
+// Crear notificación (helper reutilizable)
+const createNotification = async ({ id_usuario, id_tarea = null, tipo = 'observacion', texto = '' }) => {
+  if (!id_usuario) throw new Error('createNotification: id_usuario is required')
+  const sql = `INSERT INTO notifications (user_id, tarea_id, tipo, texto) VALUES ($1,$2,$3,$4) RETURNING *`
+  const values = [id_usuario, id_tarea, tipo, texto]
+  const { rows } = await pool.query(sql, values)
+  return rows[0]
+}
+
+const findUnreadNotificationsByUser = async (id_usuario) => {
+  const sql = `SELECT id, id_usuario, id_tarea, tipo, texto, created_at FROM notifications WHERE id_usuario = $1 AND leido = FALSE ORDER BY created_at DESC`
+  const { rows } = await pool.query(sql, [id_usuario])
+  return rows
+}
+
+const markNotificationReadById = async (id, id_usuario = null) => {
+  if (id_usuario) {
+    await pool.query(`UPDATE notifications SET leido = TRUE WHERE id = $1 AND id_usuario = $2`, [id, id_usuario])
+  } else {
+    await pool.query(`UPDATE notifications SET leido = TRUE WHERE id = $1`, [id])
+  }
+  return { ok: true }
+}
+
 module.exports = {
   findUsuarioByEmail,
   findUsuarioById,
@@ -293,5 +317,8 @@ module.exports = {
   updateTarea,
   findTareasRecibidas,
   findTareasAsignadas,
-  getTaskStats
+  getTaskStats,
+  createNotification,
+  findUnreadNotificationsByUser,
+  markNotificationReadById
 };
