@@ -7,6 +7,7 @@ const {
   findTareasRecibidas,
 } = require('../helpers/queryHelper');
 const { pool } = require('../config/bd');
+const { createNotification } = require('./notificationsController');
 
 // Crear tarea
 const createTask = async (req, res) => {
@@ -250,8 +251,10 @@ const agregarObservacion = async (req, res) => {
 
     const usuario = await findUsuarioById(req.userId);
 
+    // Actualizar la observación en la tarea
     await updateTarea(req.params.id, { observacion });
 
+    // Obtener la tarea actualizada
     const tareaActualizada = await findTareaById(req.params.id);
 
     const tareaFormateada = {
@@ -273,6 +276,25 @@ const agregarObservacion = async (req, res) => {
         email: tareaActualizada.creador_email,
       }
     };
+
+    // Crear notificación para el colaborador asignado (si existe)
+    try {
+      const destinatarioId = tareaActualizada.asignedTo;
+      if (destinatarioId) {
+        const textoNotif = (observacion || '').toString().trim().slice(0, 1000);
+        await createNotification({
+          user_id: destinatarioId,
+          tarea_id: tareaActualizada.id_tarea,
+          tipo: 'observacion',
+          texto: textoNotif
+        });
+      } else {
+        console.warn(`No se creó notificación: tarea ${tareaActualizada.id_tarea} no tiene asignedTo.`);
+      }
+    } catch (notifErr) {
+      // No bloquear la respuesta principal si falla la notificación
+      console.error('Error creando notificación de observación:', notifErr);
+    }
 
     return res.json({
       message: 'Observación agregada exitosamente',
