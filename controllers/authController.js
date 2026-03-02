@@ -160,21 +160,37 @@ const getProfile = async (req, res) => {
   }
 };
 
-// Obtener colaboradores por organización
+// Obtener colaboradores por organización o todos los colaboradores
 const getColaboradores = async (req, res) => {
   try {
-    const { organizacion } = req.query;
-
-    if (!organizacion) {
-      return res.status(400).json({ message: 'La organización es requerida' });
+    // si tu helper findColaboradores acepta organizacion, úsalo; si no, usa findAllUsuarios y filtra por rol/estado
+    let org = req.query.organizacion
+    if (!org && req.userId) {
+      const usuario = await findUsuarioById(req.userId)
+      org = usuario?.organizacion
     }
 
-    const colaboradores = await findColaboradores(organizacion);
+    let colaboradores = []
+    if (typeof findColaboradores === 'function') {
+      colaboradores = await findColaboradores(org)
+    } else {
+      // fallback: traer todos y filtrar por rol distinto a 'TeamLeader' si aplica
+      colaboradores = await findAllUsuarios()
+      colaboradores = colaboradores.filter(u => u.rol !== 'Admin' && u.rol !== 'TeamLeader')
+    }
 
-    res.status(200).json(colaboradores);
-  } catch (error) {
-    console.error('Error en getColaboradores:', error.message);
-    res.status(500).json({ message: 'Error al obtener colaboradores', error: error.message });
+    // normalizar campos mínimos
+    colaboradores = (Array.isArray(colaboradores) ? colaboradores : []).map(u => ({
+      id_usuario: u.id_usuario ?? u.id,
+      name: u.name ?? u.nombre ?? '',
+      email: u.email ?? '',
+      numeroDocumento: u.numeroDocumento ?? u.cedula ?? ''
+    }))
+
+    return res.status(200).json(colaboradores)
+  } catch (err) {
+    console.error('Error getColaboradores:', err)
+    return res.status(500).json({ message: 'Error al obtener colaboradores', error: err.message })
   }
 };
 
@@ -552,5 +568,16 @@ const exportarColaboradores = async (req, res) => {
   }
 };
 
-module.exports = { login, register, getProfile, getColaboradores, getAllUsuarios, getUsuarioById, updateUsuario, deleteUsuario, exportarUsuarios, exportarColaboradores };
+module.exports = {
+  login,
+  register,
+  getProfile,
+  getColaboradores,
+  getAllUsuarios,
+  getUsuarioById,
+  updateUsuario,
+  deleteUsuario,
+  exportarUsuarios,
+  exportarColaboradores,
+}
 
