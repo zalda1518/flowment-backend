@@ -230,7 +230,7 @@ const getUsuarioById = async (req, res) => {
 const updateUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, tipoDocumento, numeroDocumento, rol, organizacion, estado, area } = req.body;
+    const { name, email, tipoDocumento, numeroDocumento, rol, organizacion, estado, area, password } = req.body;
 
 
     const usuario = await findUsuarioById(id);
@@ -245,6 +245,10 @@ const updateUsuario = async (req, res) => {
       if (usuarioExistente) {
         return res.status(400).json({ message: 'El email ya está en uso' });
       }
+    }
+
+    if (password !== undefined && password !== '' && password.length < 8) {
+      return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 8 caracteres' });
     }
 
     // Mapear tipo de documento
