@@ -171,10 +171,44 @@ const updateTask = async (req, res) => {
 
     if (usuario && usuario.rol === 'TeamLeader') {
       const dataToUpdate = {};
-      if (req.body.titulo) dataToUpdate.titulo = req.body.titulo;
-      if (req.body.descripcion !== undefined) dataToUpdate.descripcion = req.body.descripcion;
-      if (req.body.estado) dataToUpdate.estado = req.body.estado;
-    
+      if (Object.prototype.hasOwnProperty.call(req.body, 'titulo')) {
+        const titulo = String(req.body.titulo || '').trim();
+        if (!titulo) {
+          return res.status(400).json({ message: 'El título no puede estar vacío' });
+        }
+        dataToUpdate.titulo = titulo;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'descripcion')) {
+        dataToUpdate.descripcion = req.body.descripcion;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'area')) {
+        const area = String(req.body.area || '').trim();
+        if (!area) {
+          return res.status(400).json({ message: 'El área no puede estar vacía' });
+        }
+        dataToUpdate.area = area;
+      }
+
+      const fechaVencimiento = req.body.fechaVencimiento ?? req.body.fecha_vencimiento;
+      if (fechaVencimiento !== undefined) {
+        dataToUpdate.fecha_vencimiento = fechaVencimiento;
+      }
+
+      const horaVencimiento = req.body.horaVencimiento ?? req.body.hora_vencimiento;
+      if (horaVencimiento !== undefined) {
+        dataToUpdate.hora_vencimiento = horaVencimiento;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'estado')) {
+        dataToUpdate.estado = req.body.estado;
+      }
+
+      if (Object.keys(dataToUpdate).length === 0) {
+        return res.status(400).json({ message: 'No hay campos para actualizar' });
+      }
+
 
       await updateTarea(req.params.id, dataToUpdate);
     } else {

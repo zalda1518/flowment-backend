@@ -227,6 +227,42 @@ const findTareaById = async (id) => {
 const updateTarea = async (id, data) => {
   const fields = []
   const values = []
+  const toNullable = (value) => (value === '' ? null : value)
+
+  if (data.titulo !== undefined) {
+    fields.push('titulo = ?')
+    values.push(data.titulo)
+  }
+
+  if (data.descripcion !== undefined) {
+    fields.push('descripcion = ?')
+    values.push(data.descripcion)
+  }
+
+  if (data.area !== undefined) {
+    fields.push('area = ?')
+    values.push(data.area)
+  }
+
+  const fechaVencimiento =
+    data.fecha_vencimiento !== undefined
+      ? data.fecha_vencimiento
+      : data.fechaVencimiento
+
+  if (fechaVencimiento !== undefined) {
+    fields.push('fecha_vencimiento = ?')
+    values.push(toNullable(fechaVencimiento))
+  }
+
+  const horaVencimiento =
+    data.hora_vencimiento !== undefined
+      ? data.hora_vencimiento
+      : data.horaVencimiento
+
+  if (horaVencimiento !== undefined) {
+    fields.push('hora_vencimiento = ?')
+    values.push(toNullable(horaVencimiento))
+  }
 
   if (data.observacion !== undefined) {
     fields.push('observacion = ?')
@@ -238,9 +274,14 @@ const updateTarea = async (id, data) => {
     values.push(data.estado)
   }
 
-  if (data.resumen_finalizacion !== undefined) {
+  const resumenFinalizacion =
+    data.resumen_finalizacion !== undefined
+      ? data.resumen_finalizacion
+      : data.resumenFinalizacion
+
+  if (resumenFinalizacion !== undefined) {
     fields.push('resumen_finalizacion = ?')
-    values.push(data.resumen_finalizacion)
+    values.push(resumenFinalizacion)
   }
 
   if (data.solicitud_reapertura !== undefined) {
